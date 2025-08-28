@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(uvicorn:*)",
+      "Bash(python:*)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
+      "Bash(uv:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
