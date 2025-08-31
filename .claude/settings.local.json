@@ -6,7 +6,8 @@
       "Bash(uvicorn:*)",
       "Bash(python:*)",
       "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
-      "Bash(uv:*)"
+      "Bash(uv:*)",
+      "Bash(pytest:*)"
     ],
     "deny": [],
     "ask": []

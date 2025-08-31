@@ -71,3 +71,5 @@ class CustomMetaValueVersionTerm(Base):
 
     version_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_value_version.version_id"), primary_key=True)
     term_id: Mapped[str] = mapped_column(ForeignKey("tx_term.term_id"), primary_key=True)
+    
+    term: Mapped[Term] = relationship()

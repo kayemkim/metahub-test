@@ -118,6 +118,46 @@ class MetaItemCreate(BaseModel):
     selection_mode: str = "SINGLE"
 
 
+# Meta Value schemas
+class MetaValueOut(BaseModel):
+    value_id: str
+    target_type: str
+    target_id: str
+    item_id: str
+    item_code: str
+    item_display_name: str
+    type_kind: str
+    current_version_id: str | None = None
+    created_at: datetime
+
+class MetaValueVersionOut(BaseModel):
+    version_id: str
+    version_no: int
+    value_json: str | None = None
+    code_id: str | None = None
+    code_key: str | None = None
+    code_label: str | None = None
+    taxonomy_term_id: str | None = None
+    term_key: str | None = None
+    term_display_name: str | None = None
+    term_keys: list[str] | None = None  # for multi-term taxonomy values
+    term_display_names: list[str] | None = None
+    valid_from: datetime
+    valid_to: datetime | None = None
+    author: str | None = None
+    reason: str | None = None
+
+class MetaValueWithVersionOut(BaseModel):
+    value_id: str
+    target_type: str
+    target_id: str
+    item_id: str
+    item_code: str
+    item_display_name: str
+    type_kind: str
+    created_at: datetime
+    current_version: MetaValueVersionOut | None = None
+
 # Taxonomy schemas
 class TaxonomyOut(BaseModel):
     taxonomy_id: str

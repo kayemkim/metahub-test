@@ -1,0 +1,173 @@
+// MetaHub Database Schema in DBML format
+// Use at https://dbdiagram.io to generate ERD
+
+Project MetaHub {
+  database_type: 'PostgreSQL'
+  Note: 'MetaHub - Metadata Management System. Supports Taxonomies, CodeSets, and Custom Meta Types'
+}
+
+// Taxonomy Domain
+Table tx_taxonomy {
+  taxonomy_id varchar(36) [pk]
+  taxonomy_code varchar(100) [unique, not null]
+  name varchar(200) [not null]
+  description text
+  created_at timestamp [default: `now()`]
+}
+
+Table tx_term {
+  term_id varchar(36) [pk]
+  taxonomy_id varchar(36) [ref: > tx_taxonomy.taxonomy_id]
+  term_key varchar(150) [not null]
+  display_name varchar(200) [not null]
+  parent_term_id varchar(36) [ref: > tx_term.term_id]
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (taxonomy_id, term_key) [unique]
+  }
+}
+
+Table tx_term_content {
+  content_id varchar(36) [pk]
+  term_id varchar(36) [ref: - tx_term.term_id, unique]
+  current_version_id varchar(36)
+  created_at timestamp [default: `now()`]
+}
+
+Table tx_term_content_version {
+  content_version_id varchar(36) [pk]
+  content_id varchar(36) [ref: > tx_term_content.content_id]
+  version_no integer [not null]
+  body_json text
+  body_markdown text
+  tx_time timestamp [default: `now()`]
+  valid_from timestamp [default: `now()`]
+  valid_to timestamp
+  author varchar(200)
+  change_reason varchar(1000)
+  
+  indexes {
+    (content_id, version_no) [unique]
+  }
+}
+
+// CodeSet Domain
+Table cm_codeset {
+  codeset_id varchar(36) [pk]
+  codeset_code varchar(100) [unique, not null]
+  name varchar(200) [not null]
+  description text
+  created_at timestamp [default: `now()`]
+}
+
+Table cm_code {
+  code_id varchar(36) [pk]
+  codeset_id varchar(36) [ref: > cm_codeset.codeset_id]
+  code_key varchar(150) [not null]
+  current_version_id varchar(36)
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (codeset_id, code_key) [unique]
+  }
+}
+
+Table cm_code_version {
+  code_version_id varchar(36) [pk]
+  code_id varchar(36) [ref: > cm_code.code_id]
+  version_no integer [not null]
+  label_default varchar(200) [not null]
+  sort_order integer [default: 0]
+  parent_code_id varchar(36) [ref: > cm_code.code_id]
+  valid_from timestamp [default: `now()`]
+  valid_to timestamp
+  tx_time timestamp [default: `now()`]
+  is_active boolean [default: true]
+  extra_json text
+  
+  indexes {
+    (code_id, version_no) [unique]
+  }
+}
+
+// Custom Meta Types
+Table custom_meta_type {
+  type_id varchar(36) [pk]
+  type_code varchar(100) [unique, not null]
+  name varchar(200) [not null]
+  type_kind varchar(30) [default: 'PRIMITIVE', note: 'PRIMITIVE|CODESET|TAXONOMY']
+  schema_json text [note: 'validation rules for PRIMITIVE']
+  created_at timestamp [default: `now()`]
+}
+
+Table custom_meta_group {
+  group_id varchar(36) [pk]
+  group_code varchar(100) [unique, not null]
+  display_name varchar(200) [not null]
+  sort_order integer [default: 0]
+  created_at timestamp [default: `now()`]
+}
+
+Table custom_meta_item {
+  item_id varchar(36) [pk]
+  item_code varchar(150) [unique, not null]
+  display_name varchar(200) [not null]
+  group_id varchar(36) [ref: > custom_meta_group.group_id]
+  type_id varchar(36) [ref: > custom_meta_type.type_id]
+  is_required boolean [default: false]
+  default_json text
+  selection_mode varchar(10) [default: 'SINGLE', note: 'SINGLE|MULTI for TAXONOMY']
+  created_at timestamp [default: `now()`]
+}
+
+// Meta Type Links
+Table custom_meta_type_codeset {
+  type_id varchar(36) [pk, ref: - custom_meta_type.type_id]
+  codeset_id varchar(36) [ref: > cm_codeset.codeset_id]
+}
+
+Table custom_meta_type_taxonomy {
+  type_id varchar(36) [pk, ref: - custom_meta_type.type_id]
+  taxonomy_id varchar(36) [ref: > tx_taxonomy.taxonomy_id]
+}
+
+// Meta Values
+Table custom_meta_value {
+  value_id varchar(36) [pk]
+  target_type varchar(50) [not null, note: 'table, column, job, etc.']
+  target_id varchar(200) [not null]
+  item_id varchar(36) [ref: > custom_meta_item.item_id]
+  current_version_id varchar(36)
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (target_type, target_id, item_id) [unique]
+    (target_type, target_id)
+  }
+}
+
+Table custom_meta_value_version {
+  version_id varchar(36) [pk]
+  value_id varchar(36) [ref: > custom_meta_value.value_id]
+  version_no integer [not null]
+  value_json text [note: 'PRIMITIVE payload']
+  code_id varchar(36) [ref: > cm_code.code_id, note: 'CODESET payload']
+  taxonomy_term_id varchar(36) [ref: > tx_term.term_id, note: 'TAXONOMY single payload']
+  valid_from timestamp [default: `now()`]
+  valid_to timestamp
+  tx_time timestamp [default: `now()`]
+  author varchar(200)
+  reason varchar(1000)
+  
+  indexes {
+    (value_id, version_no) [unique]
+  }
+}
+
+Table custom_meta_value_version_term {
+  version_id varchar(36) [pk, ref: > custom_meta_value_version.version_id]
+  term_id varchar(36) [pk, ref: > tx_term.term_id]
+  
+  Note: 'Multi-term taxonomy values for MULTI selection mode'
+}
