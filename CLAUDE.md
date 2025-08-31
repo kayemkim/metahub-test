@@ -64,20 +64,32 @@ black app/ tests/
 - Uses SQLAlchemy 2.0+ with async support (`AsyncSession`)
 - SQLite database with aiosqlite driver (`sqlite+aiosqlite:///./test.db`)
 - Database tables created automatically on application startup
+- **Hybrid Architecture**: Combines database flexibility with code-based type safety
 - Models support hierarchical taxonomies and flexible metadata types
+
+#### 🆕 UPDATED: Meta Type Management (Code-based)
+- **Meta Types**: Defined in `app/core/meta_types.py` (no database storage)
+- **Meta Items**: Database-managed with direct `type_kind` storage (no FK to meta_type)
+- **Meta Values**: Database-managed with code-based type validation
+- **Benefits**: Better type safety, faster operations, Git-based versioning
 
 ### API Structure
 All API endpoints are under `/api/v1/` prefix:
 - `/health` - Health check endpoint
-- `/taxonomy` - Taxonomy management
-- `/codeset` - Codeset operations
-- `/meta-types` - Custom metadata type definitions
-- `/meta-values` - Metadata value management
+- `/taxonomy` - Taxonomy management (database-managed)
+- `/codeset` - Codeset operations (database-managed)
+- `/meta/types` - 🆕 Code-based meta type definitions (read-only from code)
+- `/meta/groups` - Meta group management (database-managed)
+- `/meta/items` - Meta item management (database-managed with code validation)
+- `/meta-values` - Metadata value management with Spring @Transactional style
 - `/bootstrap` - Data initialization and seeding
 
 ### Key Patterns
 - **Async/await**: All database operations and API handlers are asynchronous
 - **Dependency Injection**: Uses FastAPI's dependency system for database sessions
+- **🆕 Spring @Transactional Style**: Transaction management with `@transactional` decorator
+- **🆕 Repository Pattern**: Clean separation of data access layer
+- **🆕 Code-based Type Management**: Meta types defined as Python enums and dataclasses
 - **Settings Management**: Environment-based configuration with Pydantic Settings
 - **Error Handling**: Structured exception handling throughout the application
 - **Type Safety**: Full type annotations with mypy configuration
@@ -87,3 +99,69 @@ All API endpoints are under `/api/v1/` prefix:
 - **API Tests**: Endpoint validation and response testing
 - **Integration Tests**: Full application workflow testing including performance and security
 - Uses pytest with asyncio support for async test functions
+
+## 🆕 Recent Architecture Updates
+
+### Meta Type Management Refactoring
+The system was recently refactored from database-driven to **code-driven meta type management**:
+
+#### Before (Database-driven)
+```python
+# Custom meta types stored in database tables
+custom_meta_type
+custom_meta_type_codeset  
+custom_meta_type_taxonomy
+custom_meta_item.type_id -> FK to custom_meta_type
+```
+
+#### After (Code-driven) 🎉
+```python
+# Meta types defined in code
+app/core/meta_types.py:
+  - MetaTypeKind enum (PRIMITIVE|STRING|CODESET|TAXONOMY)
+  - SYSTEM_META_TYPES definitions
+  - get_meta_item_type_kind() validation function
+
+custom_meta_item.type_kind -> Direct string storage
+```
+
+### Spring @Transactional Style Transaction Management
+Implemented Spring-style transaction management:
+
+```python
+@transactional()                              # REQUIRED (default)
+@transactional(read_only=True)                # READ_ONLY  
+@transactional(propagation="requires_new")    # Independent transaction
+@transactional(propagation="nested")          # Savepoint nesting
+```
+
+### Repository Pattern Implementation
+Clean architecture with separation of concerns:
+- **Repository**: Pure data access (no business logic)
+- **Service**: Business logic with `@transactional` 
+- **API**: Presentation layer with dependency injection
+
+### STRING Meta Type Support
+Added STRING meta type with JSON wrapping:
+```json
+{"value": "actual string content"}
+```
+
+## 🛠️ Development Notes
+
+### Meta Type Development
+- Add new meta types in `app/core/meta_types.py`
+- Use `MetaTypeKind` enum for type safety
+- Update `SYSTEM_META_TYPES` for system-defined types
+- No database changes needed for new meta types!
+
+### Transaction Management
+- Use `@transactional()` decorator on service methods
+- Context propagation handled automatically via contextvars
+- Compatible with FastAPI, batch jobs, and tests
+- Automatic commit/rollback based on success/failure
+
+### Database Schema
+- Current ERD: Upload `metahub_schema.dbml` to https://dbdiagram.io
+- 7 tables (down from 10) - removed meta type tables
+- Better performance with fewer JOINs

@@ -7,7 +7,10 @@
       "Bash(python:*)",
       "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
       "Bash(uv:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(curl:*)",
+      "Bash(sqlite3:*)",
+      "WebFetch(domain:chatgpt.com)"
     ],
     "deny": [],
     "ask": []

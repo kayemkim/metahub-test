@@ -10,6 +10,12 @@ class MetaValuePrimitive(BaseModel):
     reason: str | None = None
 
 
+class MetaValueString(BaseModel):
+    value_string: str
+    author: str | None = None
+    reason: str | None = None
+
+
 class MetaValueCode(BaseModel):
     code_key_or_id: str
     author: str | None = None
@@ -134,6 +140,7 @@ class MetaValueVersionOut(BaseModel):
     version_id: str
     version_no: int
     value_json: str | None = None
+    value_string: str | None = None  # for STRING type
     code_id: str | None = None
     code_key: str | None = None
     code_label: str | None = None

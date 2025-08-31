@@ -82,7 +82,8 @@ class TestAPIFunctionality:
         # Test POST endpoints
         type_data = {"type_code": "TEST", "name": "Test"}
         response5 = test_client.post("/api/v1/meta/types", json=type_data)
-        assert response5.status_code in [200, 422]
+        # Should return 400 since meta types are now managed in code
+        assert response5.status_code == 400
         
         group_data = {"group_code": "TEST", "display_name": "Test"}
         response6 = test_client.post("/api/v1/meta/groups", json=group_data)

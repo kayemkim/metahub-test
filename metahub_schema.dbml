@@ -1,9 +1,19 @@
-// MetaHub Database Schema in DBML format
+// MetaHub Database Schema in DBML format - UPDATED VERSION
 // Use at https://dbdiagram.io to generate ERD
 
 Project MetaHub {
   database_type: 'PostgreSQL'
-  Note: 'MetaHub - Metadata Management System. Supports Taxonomies, CodeSets, and Custom Meta Types'
+  Note: '''
+    MetaHub - Metadata Management System (Updated Architecture)
+    - Taxonomies: Database-managed hierarchical terms
+    - CodeSets: Database-managed code/value pairs  
+    - Meta Types: Code-managed type definitions (app/core/meta_types.py)
+    - Meta Items & Values: Database-managed with code-based type validation
+    
+    🆕 NEW: Meta types moved from database to code for better type safety
+    🗑️ REMOVED: custom_meta_type, custom_meta_type_codeset, custom_meta_type_taxonomy tables
+    ✅ IMPROVED: Direct type_kind storage in custom_meta_item (no FK needed)
+  '''
 }
 
 // Taxonomy Domain
@@ -91,15 +101,10 @@ Table cm_code_version {
   }
 }
 
-// Custom Meta Types
-Table custom_meta_type {
-  type_id varchar(36) [pk]
-  type_code varchar(100) [unique, not null]
-  name varchar(200) [not null]
-  type_kind varchar(30) [default: 'PRIMITIVE', note: 'PRIMITIVE|CODESET|TAXONOMY']
-  schema_json text [note: 'validation rules for PRIMITIVE']
-  created_at timestamp [default: `now()`]
-}
+// 🆕 UPDATED: Custom Meta Management (Code-based Types)
+// ❌ REMOVED: custom_meta_type table (now managed in app/core/meta_types.py)
+// ❌ REMOVED: custom_meta_type_codeset table (validation in code)  
+// ❌ REMOVED: custom_meta_type_taxonomy table (validation in code)
 
 Table custom_meta_group {
   group_id varchar(36) [pk]
@@ -114,25 +119,14 @@ Table custom_meta_item {
   item_code varchar(150) [unique, not null]
   display_name varchar(200) [not null]
   group_id varchar(36) [ref: > custom_meta_group.group_id]
-  type_id varchar(36) [ref: > custom_meta_type.type_id]
+  type_kind varchar(30) [default: 'PRIMITIVE', note: '🆕 DIRECT STORAGE: PRIMITIVE|STRING|CODESET|TAXONOMY (no FK needed)']
   is_required boolean [default: false]
   default_json text
   selection_mode varchar(10) [default: 'SINGLE', note: 'SINGLE|MULTI for TAXONOMY']
   created_at timestamp [default: `now()`]
 }
 
-// Meta Type Links
-Table custom_meta_type_codeset {
-  type_id varchar(36) [pk, ref: - custom_meta_type.type_id]
-  codeset_id varchar(36) [ref: > cm_codeset.codeset_id]
-}
-
-Table custom_meta_type_taxonomy {
-  type_id varchar(36) [pk, ref: - custom_meta_type.type_id]
-  taxonomy_id varchar(36) [ref: > tx_taxonomy.taxonomy_id]
-}
-
-// Meta Values
+// Meta Values (Unchanged)
 Table custom_meta_value {
   value_id varchar(36) [pk]
   target_type varchar(50) [not null, note: 'table, column, job, etc.']
@@ -151,7 +145,7 @@ Table custom_meta_value_version {
   version_id varchar(36) [pk]
   value_id varchar(36) [ref: > custom_meta_value.value_id]
   version_no integer [not null]
-  value_json text [note: 'PRIMITIVE payload']
+  value_json text [note: '🆕 UPDATED: PRIMITIVE payload OR STRING payload (JSON wrapped: {"value": "string"})']
   code_id varchar(36) [ref: > cm_code.code_id, note: 'CODESET payload']
   taxonomy_term_id varchar(36) [ref: > tx_term.term_id, note: 'TAXONOMY single payload']
   valid_from timestamp [default: `now()`]
@@ -171,3 +165,14 @@ Table custom_meta_value_version_term {
   
   Note: 'Multi-term taxonomy values for MULTI selection mode'
 }
+
+// 📊 ARCHITECTURE SUMMARY:
+// Before: 10 tables (3 for meta types + links)
+// After:  7 tables (meta types managed in code)
+// 
+// Benefits:
+// ✅ Better type safety with MetaTypeKind enum
+// ✅ No complex JOIN queries for type checking  
+// ✅ Faster meta value operations
+// ✅ Git-based type versioning
+// ✅ Compile-time type validation

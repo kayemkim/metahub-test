@@ -1,12 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.meta_types import (
+    SYSTEM_META_GROUPS, 
+    SYSTEM_META_ITEMS,
+    get_meta_item_type_kind,
+)
 from app.models.codeset import Code, CodeSet, CodeVersion
 from app.models.meta_types import (
     CustomMetaGroup,
     CustomMetaItem,
-    CustomMetaType,
-    CustomMetaTypeCodeSet,
-    CustomMetaTypeTaxonomy,
 )
 from app.models.taxonomy import Taxonomy, Term
 
@@ -40,21 +42,32 @@ async def bootstrap_demo(session: AsyncSession):
         await session.flush()
         code.current_version_id = ver.code_version_id
 
-    # Meta types
-    mt_prim = CustomMetaType(type_code="RETENTION_DAYS", name="Retention (days)")
-    mt_code = CustomMetaType(type_code="PII_LEVEL_TYPE", name="PII Level", type_kind="CODESET")
-    mt_tax = CustomMetaType(type_code="DOMAIN", name="Domain", type_kind="TAXONOMY")
-    session.add_all([mt_prim, mt_code, mt_tax])
+    # Meta types are now managed in code - no database records needed!
+
+    # Create meta groups from code definitions
+    meta_groups = {}
+    for group_def in SYSTEM_META_GROUPS.values():
+        grp = CustomMetaGroup(
+            group_code=group_def.code,
+            display_name=group_def.display_name,
+            sort_order=group_def.sort_order
+        )
+        session.add(grp)
+        meta_groups[group_def.code] = grp
     await session.flush()
 
-    session.add(CustomMetaTypeCodeSet(type_id=mt_code.type_id, codeset_id=cs.codeset_id))
-    session.add(CustomMetaTypeTaxonomy(type_id=mt_tax.type_id, taxonomy_id=tax.taxonomy_id))
-
-    grp = CustomMetaGroup(group_code="BIZ_META", display_name="Business Meta")
-    session.add(grp)
-    await session.flush()
-
-    item_ret = CustomMetaItem(item_code="retention_days", display_name="Retention Days", group_id=grp.group_id, type_id=mt_prim.type_id)
-    item_pii = CustomMetaItem(item_code="pii_level", display_name="PII Level", group_id=grp.group_id, type_id=mt_code.type_id)
-    item_dom = CustomMetaItem(item_code="domain", display_name="Domain", group_id=grp.group_id, type_id=mt_tax.type_id, selection_mode="SINGLE")
-    session.add_all([item_ret, item_pii, item_dom])
+    # Create meta items from code definitions
+    for item_def in SYSTEM_META_ITEMS.values():
+        # Get type_kind from code instead of database
+        type_kind = get_meta_item_type_kind(item_def.code)
+        
+        item = CustomMetaItem(
+            item_code=item_def.code,
+            display_name=item_def.display_name,
+            group_id=meta_groups[item_def.group_code].group_id,
+            type_kind=type_kind.value,  # Store directly in item
+            is_required=item_def.is_required,
+            selection_mode=item_def.selection_mode,
+            default_json=item_def.default_json
+        )
+        session.add(item)

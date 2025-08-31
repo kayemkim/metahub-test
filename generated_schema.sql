@@ -28,20 +28,6 @@ CREATE TABLE custom_meta_group (
 
 
 
-CREATE TABLE custom_meta_type (
-	type_id VARCHAR(36) NOT NULL, 
-	type_code VARCHAR(100) NOT NULL, 
-	name VARCHAR(200) NOT NULL, 
-	type_kind VARCHAR(30) NOT NULL, 
-	schema_json TEXT, 
-	created_at DATETIME NOT NULL, 
-	PRIMARY KEY (type_id), 
-	UNIQUE (type_code)
-)
-
-
-
-
 CREATE TABLE tx_taxonomy (
 	taxonomy_id VARCHAR(36) NOT NULL, 
 	taxonomy_code VARCHAR(100) NOT NULL, 
@@ -74,37 +60,14 @@ CREATE TABLE custom_meta_item (
 	item_code VARCHAR(150) NOT NULL, 
 	display_name VARCHAR(200) NOT NULL, 
 	group_id VARCHAR(36) NOT NULL, 
-	type_id VARCHAR(36) NOT NULL, 
+	type_kind VARCHAR(30) NOT NULL, 
 	is_required BOOLEAN NOT NULL, 
 	default_json TEXT, 
 	selection_mode VARCHAR(10) NOT NULL, 
 	created_at DATETIME NOT NULL, 
 	PRIMARY KEY (item_id), 
 	UNIQUE (item_code), 
-	FOREIGN KEY(group_id) REFERENCES custom_meta_group (group_id), 
-	FOREIGN KEY(type_id) REFERENCES custom_meta_type (type_id)
-)
-
-
-
-
-CREATE TABLE custom_meta_type_codeset (
-	type_id VARCHAR(36) NOT NULL, 
-	codeset_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (type_id), 
-	FOREIGN KEY(type_id) REFERENCES custom_meta_type (type_id), 
-	FOREIGN KEY(codeset_id) REFERENCES cm_codeset (codeset_id)
-)
-
-
-
-
-CREATE TABLE custom_meta_type_taxonomy (
-	type_id VARCHAR(36) NOT NULL, 
-	taxonomy_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (type_id), 
-	FOREIGN KEY(type_id) REFERENCES custom_meta_type (type_id), 
-	FOREIGN KEY(taxonomy_id) REFERENCES tx_taxonomy (taxonomy_id)
+	FOREIGN KEY(group_id) REFERENCES custom_meta_group (group_id)
 )
 
 

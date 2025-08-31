@@ -4,13 +4,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_session
+from app.core.database import transaction_manager
+from app.core.meta_types import MetaTypeKind, get_meta_item_type_kind
 from app.models.meta_values import CustomMetaValue, CustomMetaValueVersion, CustomMetaValueVersionTerm
-from app.models.meta_types import CustomMetaItem, CustomMetaType
+from app.models.meta_types import CustomMetaItem
 from app.models.codeset import Code, CodeVersion
 from app.models.taxonomy import Term
 from app.schemas.base import (
     MetaValueCode,
     MetaValuePrimitive,
+    MetaValueString,
     MetaValueTaxMulti,
     MetaValueTaxSingle,
     MetaValueWithVersionOut,
@@ -19,6 +22,7 @@ from app.schemas.base import (
 from app.services.meta_value_service import (
     set_meta_value_codeset,
     set_meta_value_primitive,
+    set_meta_value_string,
     set_meta_value_taxonomy_multi,
     set_meta_value_taxonomy_single,
 )
@@ -43,11 +47,41 @@ async def set_primitive_value(
             item_code=item_code,
             payload=data
         )
+        await session.commit()
         return {"version_id": version_id}
     except Exception as e:
         if "not found" in str(e).lower():
             raise HTTPException(404, str(e))
         if "not PRIMITIVE" in str(e):
+            raise HTTPException(400, str(e))
+        raise HTTPException(500, str(e))
+
+
+@router.put("/{target_type}/{target_id}/string/{item_code}")
+async def set_string_value(
+    target_type: str,
+    target_id: str,
+    item_code: str,
+    data: MetaValueString,
+    session: AsyncSession = Depends(get_session)
+):
+    """Set a string meta value for a target"""
+    try:
+        async with transaction_manager(session):
+            version_id = await set_meta_value_string(
+                session,
+                target_type=target_type,
+                target_id=target_id,
+                item_code=item_code,
+                payload=data
+            )
+            return {"version_id": version_id}
+    except HTTPException:
+        raise  # HTTPException은 그대로 전달
+    except Exception as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(404, str(e))
+        if "not STRING" in str(e):
             raise HTTPException(400, str(e))
         raise HTTPException(500, str(e))
 
@@ -69,6 +103,7 @@ async def set_codeset_value(
             item_code=item_code,
             payload=data
         )
+        await session.commit()
         return {"version_id": version_id}
     except Exception as e:
         if "not found" in str(e).lower():
@@ -97,6 +132,7 @@ async def set_taxonomy_single_value(
             item_code=item_code,
             payload=data
         )
+        await session.commit()
         return {"version_id": version_id}
     except Exception as e:
         if "not found" in str(e).lower():
@@ -127,6 +163,7 @@ async def set_taxonomy_multi_value(
             item_code=item_code,
             payload=data
         )
+        await session.commit()
         return {"version_id": version_id}
     except Exception as e:
         if "not found" in str(e).lower():
@@ -150,7 +187,7 @@ async def get_meta_values_for_target(
     try:
         # Query meta values with their current versions and related data
         stmt = select(CustomMetaValue).options(
-            selectinload(CustomMetaValue.item).selectinload(CustomMetaItem.type),
+            selectinload(CustomMetaValue.item),  # No need to load type relationship anymore
             selectinload(CustomMetaValue.current_version)
         ).where(
             CustomMetaValue.target_type == target_type,
@@ -184,10 +221,29 @@ async def get_meta_values_for_target(
                         "reason": current_version.reason,
                     }
                     
-                    if meta_value.item.type.type_kind == "PRIMITIVE":
+                    # Use code-based type checking
+                    try:
+                        item_type_kind = get_meta_item_type_kind(meta_value.item.item_code)
+                    except ValueError:
+                        # Fallback to database type for unknown items
+                        item_type_kind = meta_value.item.type_kind
+                    
+                    if item_type_kind == MetaTypeKind.PRIMITIVE:
                         version_data["value_json"] = current_version.value_json
                     
-                    elif meta_value.item.type.type_kind == "CODESET":
+                    elif item_type_kind == MetaTypeKind.STRING:
+                        # Extract string value from JSON wrapper
+                        if current_version.value_json:
+                            import json
+                            try:
+                                data = json.loads(current_version.value_json)
+                                version_data["value_string"] = data.get("value", "")
+                            except (json.JSONDecodeError, KeyError):
+                                version_data["value_string"] = ""
+                        else:
+                            version_data["value_string"] = ""
+                    
+                    elif item_type_kind == MetaTypeKind.CODESET:
                         if current_version.code_id:
                             # Get code details
                             code_stmt = select(Code).options(
@@ -202,7 +258,7 @@ async def get_meta_values_for_target(
                                 if code.current_version:
                                     version_data["code_label"] = code.current_version.label_default
                     
-                    elif meta_value.item.type.type_kind == "TAXONOMY":
+                    elif meta_value.item.type_kind == "TAXONOMY":
                         if meta_value.item.selection_mode == "SINGLE":
                             if current_version.taxonomy_term_id:
                                 # Get single term details
@@ -238,7 +294,7 @@ async def get_meta_values_for_target(
                 item_id=meta_value.item_id,
                 item_code=meta_value.item.item_code,
                 item_display_name=meta_value.item.display_name,
-                type_kind=meta_value.item.type.type_kind,
+                type_kind=meta_value.item.type_kind,
                 created_at=meta_value.created_at,
                 current_version=current_version_data
             )
@@ -260,9 +316,7 @@ async def get_meta_value_for_target_and_item(
     """Get a specific meta value for target and item"""
     try:
         # First get the item by code
-        item_stmt = select(CustomMetaItem).options(
-            selectinload(CustomMetaItem.type)
-        ).where(CustomMetaItem.item_code == item_code)
+        item_stmt = select(CustomMetaItem).where(CustomMetaItem.item_code == item_code)
         
         item_result = await session.execute(item_stmt)
         item = item_result.scalar_one_or_none()
@@ -302,10 +356,29 @@ async def get_meta_value_for_target_and_item(
                     "reason": current_version.reason,
                 }
                 
-                if item.type.type_kind == "PRIMITIVE":
+                # Use code-based type checking
+                try:
+                    item_type_kind = get_meta_item_type_kind(item.item_code)
+                except ValueError:
+                    # Fallback to database type for unknown items
+                    item_type_kind = item.type_kind
+                
+                if item_type_kind == MetaTypeKind.PRIMITIVE:
                     version_data["value_json"] = current_version.value_json
                 
-                elif item.type.type_kind == "CODESET":
+                elif item_type_kind == MetaTypeKind.STRING:
+                    # Extract string value from JSON wrapper
+                    if current_version.value_json:
+                        import json
+                        try:
+                            data = json.loads(current_version.value_json)
+                            version_data["value_string"] = data.get("value", "")
+                        except (json.JSONDecodeError, KeyError):
+                            version_data["value_string"] = ""
+                    else:
+                        version_data["value_string"] = ""
+                
+                elif item_type_kind == MetaTypeKind.CODESET:
                     if current_version.code_id:
                         code_stmt = select(Code).options(
                             selectinload(Code.current_version)
@@ -319,7 +392,7 @@ async def get_meta_value_for_target_and_item(
                             if code.current_version:
                                 version_data["code_label"] = code.current_version.label_default
                 
-                elif item.type.type_kind == "TAXONOMY":
+                elif item_type_kind == MetaTypeKind.TAXONOMY:
                     if item.selection_mode == "SINGLE":
                         if current_version.taxonomy_term_id:
                             term_stmt = select(Term).where(Term.term_id == current_version.taxonomy_term_id)
@@ -352,7 +425,7 @@ async def get_meta_value_for_target_and_item(
             item_id=meta_value.item_id,
             item_code=item.item_code,
             item_display_name=item.display_name,
-            type_kind=item.type.type_kind,
+            type_kind=item.type_kind,
             created_at=meta_value.created_at,
             current_version=current_version_data
         )

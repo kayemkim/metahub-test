@@ -8,18 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, new_uuid, utcnow
 
 
-class CustomMetaType(Base):
-    __tablename__ = "custom_meta_type"
-
-    type_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    type_code: Mapped[str] = mapped_column(String(100), unique=True)
-    name: Mapped[str] = mapped_column(String(200))
-    type_kind: Mapped[str] = mapped_column(String(30), default="PRIMITIVE")  # PRIMITIVE|CODESET|TAXONOMY
-    schema_json: Mapped[str | None] = mapped_column(Text)  # validation rules for PRIMITIVE
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-    codeset_link: Mapped[CustomMetaTypeCodeSet | None] = relationship(back_populates="meta_type", uselist=False)
-    taxonomy_link: Mapped[CustomMetaTypeTaxonomy | None] = relationship(back_populates="meta_type", uselist=False)
+# CustomMetaType is now managed in code via app/core/meta_types.py
+# Database table is no longer needed - all type information comes from code
 
 
 class CustomMetaGroup(Base):
@@ -40,7 +30,7 @@ class CustomMetaItem(Base):
     display_name: Mapped[str] = mapped_column(String(200))
 
     group_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_group.group_id"))
-    type_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_type.type_id"))
+    type_kind: Mapped[str] = mapped_column(String(30), default="PRIMITIVE")  # PRIMITIVE|STRING|CODESET|TAXONOMY
 
     is_required: Mapped[bool] = mapped_column(default=False)
     default_json: Mapped[str | None] = mapped_column(Text)
@@ -48,24 +38,7 @@ class CustomMetaItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     group: Mapped[CustomMetaGroup] = relationship()
-    type: Mapped[CustomMetaType] = relationship()
 
 
-class CustomMetaTypeCodeSet(Base):
-    __tablename__ = "custom_meta_type_codeset"
-
-    type_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_type.type_id"), primary_key=True)
-    codeset_id: Mapped[str] = mapped_column(ForeignKey("cm_codeset.codeset_id"))
-
-    meta_type: Mapped[CustomMetaType] = relationship(back_populates="codeset_link")
-    codeset: Mapped[CodeSet] = relationship(back_populates="type_links")
-
-
-class CustomMetaTypeTaxonomy(Base):
-    __tablename__ = "custom_meta_type_taxonomy"
-
-    type_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_type.type_id"), primary_key=True)
-    taxonomy_id: Mapped[str] = mapped_column(ForeignKey("tx_taxonomy.taxonomy_id"))
-
-    meta_type: Mapped[CustomMetaType] = relationship(back_populates="taxonomy_link")
-    taxonomy: Mapped[Taxonomy] = relationship(back_populates="type_links")
+# CustomMetaTypeCodeSet and CustomMetaTypeTaxonomy are no longer needed
+# Type-specific validation is now handled in code via SYSTEM_META_TYPES definitions

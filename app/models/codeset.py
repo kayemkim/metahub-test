@@ -18,7 +18,7 @@ class CodeSet(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     codes: Mapped[list[Code]] = relationship(back_populates="codeset")
-    type_links: Mapped[list[CustomMetaTypeCodeSet]] = relationship(back_populates="codeset")
+    # type_links removed - meta types are now managed in code
 
 
 class Code(Base):

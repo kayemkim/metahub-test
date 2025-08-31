@@ -17,7 +17,7 @@ class Taxonomy(Base):
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-    type_links: Mapped[list[CustomMetaTypeTaxonomy]] = relationship(back_populates="taxonomy")
+    # type_links removed - meta types are now managed in code
 
 
 class Term(Base):

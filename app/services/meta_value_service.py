@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.meta_types import MetaTypeKind, get_meta_item_type_kind
 from app.db.base import utcnow
 from app.models.codeset import Code
 from app.models.meta_types import CustomMetaItem
@@ -15,6 +16,7 @@ from app.models.taxonomy import Term
 from app.schemas.base import (
     MetaValueCode,
     MetaValuePrimitive,
+    MetaValueString,
     MetaValueTaxMulti,
     MetaValueTaxSingle,
 )
@@ -47,12 +49,19 @@ async def set_meta_value_primitive(
     item_code: str,
     payload: MetaValuePrimitive,
 ) -> str:
-    async with session.begin():
+        # Validate meta item type using code definitions
+        try:
+            item_type_kind = get_meta_item_type_kind(item_code)
+        except ValueError:
+            raise HTTPException(404, f"meta item not found: {item_code}")
+            
+        if item_type_kind != MetaTypeKind.PRIMITIVE:
+            raise HTTPException(400, f"item {item_code} is not PRIMITIVE, it's {item_type_kind}")
+        
+        # Still need to get the CustomMetaItem for database operations
         item = (await session.execute(select(CustomMetaItem).where(CustomMetaItem.item_code == item_code))).scalar_one_or_none()
         if not item:
-            raise HTTPException(404, f"meta item not found: {item_code}")
-        if item.type.type_kind != "PRIMITIVE":
-            raise HTTPException(400, f"item {item_code} is not PRIMITIVE")
+            raise HTTPException(500, f"meta item {item_code} not found in database - sync issue")
 
         mv = await _ensure_value_row(session, target_type, target_id, item)
 
@@ -76,6 +85,52 @@ async def set_meta_value_primitive(
         return v.version_id
 
 
+async def set_meta_value_string(
+    session: AsyncSession,
+    *,
+    target_type: str,
+    target_id: str,
+    item_code: str,
+    payload: MetaValueString,
+) -> str:
+        # Validate meta item type using code definitions
+        try:
+            item_type_kind = get_meta_item_type_kind(item_code)
+        except ValueError:
+            raise HTTPException(404, f"meta item not found: {item_code}")
+            
+        if item_type_kind != MetaTypeKind.STRING:
+            raise HTTPException(400, f"item {item_code} is not STRING, it's {item_type_kind}")
+        
+        # Still need to get the CustomMetaItem for database operations
+        item = (await session.execute(select(CustomMetaItem).where(CustomMetaItem.item_code == item_code))).scalar_one_or_none()
+        if not item:
+            raise HTTPException(500, f"meta item {item_code} not found in database - sync issue")
+
+        mv = await _ensure_value_row(session, target_type, target_id, item)
+
+        # Close prev
+        if mv.current_version_id:
+            prev = await session.get(CustomMetaValueVersion, mv.current_version_id, with_for_update=True)
+            if prev and prev.valid_to is None:
+                prev.valid_to = utcnow()
+
+        version_no = await _next_version_no(session, CustomMetaValueVersion, "value_id", mv.value_id)
+        # Store string value wrapped in JSON
+        import json
+        v = CustomMetaValueVersion(
+            value_id=mv.value_id,
+            version_no=version_no,
+            value_json=json.dumps({"value": payload.value_string}),
+            author=payload.author,
+            reason=payload.reason,
+        )
+        session.add(v)
+        await session.flush()
+        mv.current_version_id = v.version_id
+        return v.version_id
+
+
 async def set_meta_value_codeset(
     session: AsyncSession,
     *,
@@ -84,12 +139,19 @@ async def set_meta_value_codeset(
     item_code: str,
     payload: MetaValueCode,
 ) -> str:
-    async with session.begin():
+        # Validate meta item type using code definitions
+        try:
+            item_type_kind = get_meta_item_type_kind(item_code)
+        except ValueError:
+            raise HTTPException(404, f"meta item not found: {item_code}")
+            
+        if item_type_kind != MetaTypeKind.CODESET:
+            raise HTTPException(400, f"item {item_code} is not CODESET, it's {item_type_kind}")
+        
+        # Still need to get the CustomMetaItem for database operations
         item = (await session.execute(select(CustomMetaItem).where(CustomMetaItem.item_code == item_code))).scalar_one_or_none()
         if not item:
-            raise HTTPException(404, f"meta item not found: {item_code}")
-        if item.type.type_kind != "CODESET":
-            raise HTTPException(400, f"item {item_code} is not CODESET")
+            raise HTTPException(500, f"meta item {item_code} not found in database - sync issue")
 
         # Resolve codeset
         link = item.type.codeset_link
@@ -137,12 +199,19 @@ async def set_meta_value_taxonomy_single(
     item_code: str,
     payload: MetaValueTaxSingle,
 ) -> str:
-    async with session.begin():
+        # Validate meta item type using code definitions
+        try:
+            item_type_kind = get_meta_item_type_kind(item_code)
+        except ValueError:
+            raise HTTPException(404, f"meta item not found: {item_code}")
+            
+        if item_type_kind != MetaTypeKind.TAXONOMY:
+            raise HTTPException(400, f"item {item_code} is not TAXONOMY, it's {item_type_kind}")
+        
+        # Still need to get the CustomMetaItem for database operations and selection_mode
         item = (await session.execute(select(CustomMetaItem).where(CustomMetaItem.item_code == item_code))).scalar_one_or_none()
         if not item:
-            raise HTTPException(404, f"meta item not found: {item_code}")
-        if item.type.type_kind != "TAXONOMY":
-            raise HTTPException(400, f"item {item_code} is not TAXONOMY")
+            raise HTTPException(500, f"meta item {item_code} not found in database - sync issue")
         if item.selection_mode != "SINGLE":
             raise HTTPException(400, f"item {item_code} selection_mode must be SINGLE")
 
@@ -191,12 +260,19 @@ async def set_meta_value_taxonomy_multi(
     item_code: str,
     payload: MetaValueTaxMulti,
 ) -> str:
-    async with session.begin():
+        # Validate meta item type using code definitions
+        try:
+            item_type_kind = get_meta_item_type_kind(item_code)
+        except ValueError:
+            raise HTTPException(404, f"meta item not found: {item_code}")
+            
+        if item_type_kind != MetaTypeKind.TAXONOMY:
+            raise HTTPException(400, f"item {item_code} is not TAXONOMY, it's {item_type_kind}")
+        
+        # Still need to get the CustomMetaItem for database operations and selection_mode
         item = (await session.execute(select(CustomMetaItem).where(CustomMetaItem.item_code == item_code))).scalar_one_or_none()
         if not item:
-            raise HTTPException(404, f"meta item not found: {item_code}")
-        if item.type.type_kind != "TAXONOMY":
-            raise HTTPException(400, f"item {item_code} is not TAXONOMY")
+            raise HTTPException(500, f"meta item {item_code} not found in database - sync issue")
         if item.selection_mode != "MULTI":
             raise HTTPException(400, f"item {item_code} selection_mode must be MULTI")
 
