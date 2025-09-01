@@ -82,18 +82,10 @@ class TestFullAPIIntegration:
         assert cs_get.status_code == 200
         assert cs_get.json()["name"] == codeset_data["name"]
 
-        # MetaType CRUD
-        meta_type_data = {
-            "type_code": f"TEST_MT_{timestamp}",
-            "name": f"Test MetaType {timestamp}",
-            "type_kind": "PRIMITIVE"
-        }
-        mt_create = test_client.post("/api/v1/meta/types", json=meta_type_data)
-        assert mt_create.status_code == 200
-        
-        mt_get = test_client.get(f"/api/v1/meta/types/{meta_type_data['type_code']}")
-        assert mt_get.status_code == 200
-        assert mt_get.json()["name"] == meta_type_data["name"]
+        # MetaType는 이제 코드 기반이므로 GET만 테스트
+        mt_list = test_client.get("/api/v1/meta/types")
+        assert mt_list.status_code == 200
+        assert len(mt_list.json()) > 0  # 시스템 메타 타입들이 있어야 함
 
         # MetaGroup CRUD
         meta_group_data = {
@@ -182,7 +174,6 @@ class TestFullAPIIntegration:
         required_field_tests = [
             ("/api/v1/taxonomy/", {}),
             ("/api/v1/codeset/", {}),
-            ("/api/v1/meta/types", {}),
             ("/api/v1/meta/groups", {})
         ]
         
@@ -199,11 +190,6 @@ class TestFullAPIIntegration:
             ("/api/v1/codeset/", {
                 "codeset_code": f"DUP_CS_{timestamp}",
                 "name": "Duplicate Test CodeSet"
-            }),
-            ("/api/v1/meta/types", {
-                "type_code": f"DUP_MT_{timestamp}",
-                "name": "Duplicate Test MetaType",
-                "type_kind": "PRIMITIVE"
             }),
             ("/api/v1/meta/groups", {
                 "group_code": f"DUP_MG_{timestamp}",

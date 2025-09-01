@@ -10,7 +10,14 @@
       "Bash(pytest:*)",
       "Bash(curl:*)",
       "Bash(sqlite3:*)",
-      "WebFetch(domain:chatgpt.com)"
+      "WebFetch(domain:chatgpt.com)",
+      "Bash(alembic init:*)",
+      "Bash(alembic revision:*)",
+      "Bash(alembic current:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(alembic stamp:*)",
+      "Bash(alembic downgrade:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

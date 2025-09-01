@@ -19,11 +19,9 @@ app = FastAPI(
 app.include_router(api_router)
 
 
-@app.on_event("startup")
-async def startup():
-    """Create database tables on startup"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# Database tables are now managed by Alembic migrations
+# No need for automatic table creation on startup
+# Use: alembic upgrade head
 
 
 if __name__ == "__main__":

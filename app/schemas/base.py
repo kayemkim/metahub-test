@@ -112,7 +112,9 @@ class MetaItemOut(BaseModel):
     item_code: str
     display_name: str
     group_id: str
-    type_id: str
+    type_kind: str
+    is_required: bool = False
+    default_json: str | None = None
     selection_mode: str
     created_at: datetime
 
@@ -120,7 +122,9 @@ class MetaItemCreate(BaseModel):
     item_code: str
     display_name: str
     group_id: str
-    type_id: str
+    type_kind: str
+    is_required: bool = False
+    default_json: str | None = None
     selection_mode: str = "SINGLE"
 
 

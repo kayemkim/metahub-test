@@ -13,6 +13,27 @@ MetaHub Test is a FastAPI-based metadata management system that provides REST AP
 - Virtual environment is in `.venv/` directory
 - Python 3.11+ required
 
+### Database Migrations (Alembic)
+```bash
+# Create a new migration after model changes
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply migrations to database
+alembic upgrade head
+
+# Rollback to previous migration
+alembic downgrade -1
+
+# Check current migration status
+alembic current
+
+# View migration history
+alembic history
+
+# Rollback to beginning (drop all tables)
+alembic downgrade base
+```
+
 ### Running the Application
 ```bash
 # Development server with auto-reload
@@ -63,7 +84,7 @@ black app/ tests/
 ### Database Architecture
 - Uses SQLAlchemy 2.0+ with async support (`AsyncSession`)
 - SQLite database with aiosqlite driver (`sqlite+aiosqlite:///./test.db`)
-- Database tables created automatically on application startup
+- **Alembic Migrations**: Database schema managed via Alembic migrations
 - **Hybrid Architecture**: Combines database flexibility with code-based type safety
 - Models support hierarchical taxonomies and flexible metadata types
 

@@ -102,13 +102,12 @@ class TestAPISecurity:
                     "name": None  # null 값
                 }
             },
-            # MetaType 생성시 타입 오류
+            # MetaGroup 생성시 타입 오류
             {
-                "endpoint": "/api/v1/meta/types",
+                "endpoint": "/api/v1/meta/groups",
                 "data": {
-                    "type_code": "TEST",
-                    "name": "Test",
-                    "type_kind": "INVALID_KIND"  # 유효하지 않은 enum 값
+                    "group_code": 123,  # 문자열이어야 하는데 숫자
+                    "display_name": "Test"
                 }
             }
         ]
