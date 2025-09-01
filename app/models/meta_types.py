@@ -7,7 +7,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, new_uuid, utcnow
 
-
 # CustomMetaType is now managed in code via app/core/meta_types.py
 # Database table is no longer needed - all type information comes from code
 

@@ -3,8 +3,6 @@ API Security Integration Tests
 API 보안 및 데이터 검증 테스트
 """
 import pytest
-import json
-from uuid import uuid4
 
 
 class TestAPISecurity:
@@ -25,13 +23,13 @@ class TestAPISecurity:
             "' or 1=1--",
             "') or '1'='1--"
         ]
-        
+
         for injection_attempt in sql_injection_attempts:
             # Taxonomy 조회에서 SQL 인젝션 시도
             response = test_client.get(f"/api/v1/taxonomy/{injection_attempt}")
             # 404 또는 422 에러여야 함 (서버 에러가 아님)
             assert response.status_code in [404, 422], f"SQL injection attempt should be handled safely: {injection_attempt}"
-            
+
             # POST 요청에서 SQL 인젝션 시도
             malicious_data = {
                 "taxonomy_code": injection_attempt,
@@ -53,7 +51,7 @@ class TestAPISecurity:
             "\";alert('XSS');//",
             "<body onload=alert('XSS')>"
         ]
-        
+
         for xss_attempt in xss_attempts:
             # Taxonomy 생성에서 XSS 시도
             malicious_data = {
@@ -61,9 +59,9 @@ class TestAPISecurity:
                 "name": xss_attempt,
                 "description": xss_attempt
             }
-            
+
             response = test_client.post("/api/v1/taxonomy/", json=malicious_data)
-            
+
             if response.status_code == 200:
                 # 성공적으로 생성되었다면, 조회해서 XSS 스크립트가 그대로 저장되었는지 확인
                 get_response = test_client.get("/api/v1/taxonomy/XSS_TEST")
@@ -71,7 +69,7 @@ class TestAPISecurity:
                     data = get_response.json()
                     # XSS 스크립트가 그대로 저장되어 있는지 확인 (이는 정상적임 - 출력시 이스케이프되어야 함)
                     assert xss_attempt in str(data), "XSS content should be stored as-is"
-                    
+
                     # 응답이 JSON 형태로 안전하게 반환되는지 확인
                     assert isinstance(data, dict)
 
@@ -111,7 +109,7 @@ class TestAPISecurity:
                 }
             }
         ]
-        
+
         for test_case in invalid_data_tests:
             response = test_client.post(test_case["endpoint"], json=test_case["data"])
             # 422 Validation Error 또는 200(성공)이 올 수 있음 (현재 구현에 따라)
@@ -121,7 +119,7 @@ class TestAPISecurity:
         """필드 길이 검증 테스트"""
         # 매우 긴 문자열 생성
         very_long_string = "A" * 10000
-        
+
         # 각 엔드포인트에서 긴 문자열 테스트
         long_string_tests = [
             {
@@ -134,7 +132,7 @@ class TestAPISecurity:
             {
                 "endpoint": "/api/v1/taxonomy/",
                 "data": {
-                    "taxonomy_code": "TEST", 
+                    "taxonomy_code": "TEST",
                     "name": very_long_string
                 }
             },
@@ -145,16 +143,8 @@ class TestAPISecurity:
                     "name": "Test"
                 }
             },
-            {
-                "endpoint": "/api/v1/meta/types",
-                "data": {
-                    "type_code": very_long_string,
-                    "name": "Test",
-                    "type_kind": "PRIMITIVE"
-                }
-            }
         ]
-        
+
         for test_case in long_string_tests:
             response = test_client.post(test_case["endpoint"], json=test_case["data"])
             # 적절한 에러 응답이거나 성공할 수 있음 (현재 구현에서는 길이 제한이 없을 수 있음)
@@ -163,7 +153,7 @@ class TestAPISecurity:
     def test_authorization_placeholder(self, test_client):
         """인증/인가 플레이스홀더 테스트"""
         # 현재 API는 인증이 없지만, 향후 구현시를 위한 테스트 구조
-        
+
         # 모든 엔드포인트가 현재는 열려있는지 확인
         open_endpoints = [
             "/api/v1/health",
@@ -173,7 +163,7 @@ class TestAPISecurity:
             "/api/v1/meta/groups",
             "/api/v1/bootstrap/status"
         ]
-        
+
         for endpoint in open_endpoints:
             response = test_client.get(endpoint)
             # 401 Unauthorized가 아니어야 함 (현재는 인증이 없으므로)
@@ -184,7 +174,7 @@ class TestAPISecurity:
         # Content-Type은 application/json이지만 실제로는 잘못된 JSON
         malformed_json_strings = [
             '{"taxonomy_code": "TEST", "name":}',  # 값 누락
-            '{"taxonomy_code": "TEST" "name": "Test"}',  # 쉼표 누락  
+            '{"taxonomy_code": "TEST" "name": "Test"}',  # 쉼표 누락
             '{"taxonomy_code": "TEST", "name": "Test",}',  # 끝에 쉼표
             '{taxonomy_code: "TEST", name: "Test"}',  # 키에 따옴표 없음
             '{"taxonomy_code": "TEST", "name": "Test"',  # 닫는 괄호 없음
@@ -193,14 +183,14 @@ class TestAPISecurity:
             '[]',  # 객체가 아닌 배열
             'null'  # null 값
         ]
-        
+
         # TestClient는 JSON을 자동으로 처리하므로 malformed JSON 테스트는 제한적
         # 대신 기본적인 JSON 파싱 오류 상황을 시뮬레이션
-        
+
         # 빈 요청 본문 테스트
         try:
             response = test_client.post(
-                "/api/v1/taxonomy/", 
+                "/api/v1/taxonomy/",
                 data="",
                 headers={"Content-Type": "application/json"}
             )
@@ -234,13 +224,13 @@ class TestAPISecurity:
                 "description": "탭\t문자가\t포함된\t텍스트"
             }
         ]
-        
+
         for test_data in special_char_tests:
             response = test_client.post("/api/v1/taxonomy/", json=test_data)
-            
+
             # 성공하거나 적절한 validation error가 발생해야 함
             assert response.status_code in [200, 400, 422], f"Special characters should be handled properly: {test_data}"
-            
+
             if response.status_code == 200:
                 # 성공적으로 생성되었다면 조회해서 데이터가 올바르게 저장되었는지 확인
                 get_response = test_client.get(f"/api/v1/taxonomy/{test_data['taxonomy_code']}")
@@ -281,7 +271,7 @@ class TestAPISecurity:
                 }
             }
         ]
-        
+
         for test_case in null_empty_tests:
             response = test_client.post(test_case["endpoint"], json=test_case["data"])
             # 적절한 validation error가 발생하거나 성공할 수 있음 (현재 구현에 따라)
@@ -291,28 +281,28 @@ class TestAPISecurity:
         """컨텐츠 길이 제한 테스트"""
         # Bootstrap 데이터 생성
         test_client.post("/api/v1/bootstrap/demo")
-        
+
         # Terms 조회
         terms = test_client.get("/api/v1/taxonomy/DATA_DOMAIN/terms").json()
         if not terms:
             pytest.skip("No terms available for content length test")
-        
+
         term_id = terms[0]["term_id"]
-        
+
         # 매우 큰 컨텐츠 생성 시도
         huge_content = "A" * 1000000  # 1MB
-        
+
         content_data = {
             "body_markdown": huge_content,
             "author": "security_test",
             "reason": "Testing content length limits"
         }
-        
+
         response = test_client.put(
             f"/api/v1/taxonomy/terms/{term_id}/content",
             json=content_data
         )
-        
+
         # 너무 큰 컨텐츠는 거부되거나, 성공하더라도 적절히 처리되어야 함
         if response.status_code == 200:
             # 성공했다면 응답이 합리적인 시간 내에 와야 함
@@ -326,11 +316,11 @@ class TestAPISecurity:
         """매개변수 오염 공격 방지 테스트"""
         # URL 매개변수 중복 테스트
         # FastAPI/Starlette는 이를 자동으로 처리하지만 테스트해볼 가치가 있음
-        
+
         # 존재하지 않는 taxonomy 조회
         response = test_client.get("/api/v1/taxonomy/TEST1")
         assert response.status_code == 404
-        
+
         # 정상적인 taxonomy 생성
         tax_data = {
             "taxonomy_code": "PARAM_TEST",
@@ -338,7 +328,7 @@ class TestAPISecurity:
         }
         create_response = test_client.post("/api/v1/taxonomy/", json=tax_data)
         assert create_response.status_code == 200
-        
+
         # 생성된 taxonomy 조회
         get_response = test_client.get("/api/v1/taxonomy/PARAM_TEST")
         assert get_response.status_code == 200

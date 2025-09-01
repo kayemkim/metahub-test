@@ -2,19 +2,19 @@
 Meta Types API - now code-based instead of database-based
 """
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_session
-from app.core.meta_types import MetaTypeKind, SYSTEM_META_GROUPS, get_meta_item_type_kind, get_all_meta_type_kinds
+from app.core.meta_types import MetaTypeKind, get_all_meta_type_kinds
 from app.models.meta_types import CustomMetaGroup, CustomMetaItem
 from app.schemas.base import (
     MetaGroupCreate,
     MetaGroupOut,
     MetaItemCreate,
     MetaItemOut,
-    MetaTypeCreate,
     MetaTypeOut,
 )
 
@@ -44,7 +44,7 @@ async def get_meta_type(type_code: str):
         kind = MetaTypeKind(type_code.upper())
     except ValueError:
         raise HTTPException(404, f"Meta type '{type_code}' not found")
-    
+
     return MetaTypeOut(
         type_id=kind.value,
         type_code=kind.value,
@@ -54,11 +54,6 @@ async def get_meta_type(type_code: str):
         created_at=datetime.utcnow()
     )
 
-
-@router.post("/types", response_model=MetaTypeOut)
-async def create_meta_type(data: MetaTypeCreate):
-    """Meta types are basic kinds - cannot be created via API"""
-    raise HTTPException(400, "Meta type kinds are fixed. Use /meta/items to create specific metadata items.")
 
 
 # MetaGroup endpoints - still database-based
@@ -85,7 +80,7 @@ async def get_meta_group(group_code: str, session: AsyncSession = Depends(get_se
     group = result.scalar_one_or_none()
     if not group:
         raise HTTPException(404, "meta group not found")
-    
+
     return MetaGroupOut(
         group_id=group.group_id,
         group_code=group.group_code,
@@ -112,7 +107,7 @@ async def create_meta_group(data: MetaGroupCreate, session: AsyncSession = Depen
     )
     session.add(group)
     await session.commit()
-    
+
     return MetaGroupOut(
         group_id=group.group_id,
         group_code=group.group_code,
@@ -154,7 +149,7 @@ async def get_meta_item(item_code: str, session: AsyncSession = Depends(get_sess
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(404, "meta item not found")
-    
+
     return MetaItemOut(
         item_id=item.item_id,
         item_code=item.item_code,
@@ -177,14 +172,14 @@ async def create_meta_item(data: MetaItemCreate, session: AsyncSession = Depends
     )
     if result.scalar_one_or_none():
         raise HTTPException(400, f"Meta item '{data.item_code}' already exists")
-    
+
     # Validate group exists
     group_result = await session.execute(
         select(CustomMetaGroup).where(CustomMetaGroup.group_id == data.group_id)
     )
     if not group_result.scalar_one_or_none():
         raise HTTPException(400, f"Meta group '{data.group_id}' not found")
-    
+
     # Validate type_kind is valid
     from app.core.meta_types import validate_meta_type_kind
     if not validate_meta_type_kind(data.type_kind):
@@ -201,7 +196,7 @@ async def create_meta_item(data: MetaItemCreate, session: AsyncSession = Depends
     )
     session.add(item)
     await session.commit()
-    
+
     return MetaItemOut(
         item_id=item.item_id,
         item_code=item.item_code,

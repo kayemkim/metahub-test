@@ -1,9 +1,9 @@
-from typing import AsyncIterator
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
+from collections.abc import AsyncIterator
 
-from app.db.session import AsyncSessionLocal, get_session as legacy_get_session
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import _current_session
+from app.db.session import AsyncSessionLocal
 
 __all__ = ["get_session", "get_repository_session"]
 
@@ -33,5 +33,3 @@ async def get_repository_session() -> AsyncSession:
     return session
 
 
-# Keep legacy for backward compatibility
-get_legacy_session = legacy_get_session

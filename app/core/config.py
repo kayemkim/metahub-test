@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "AIDP Meta/Taxonomy Async API"
+    app_name: str = "MetaHub Async API"
     database_url: str = "sqlite+aiosqlite:///./test.db"
     debug: bool = True
 

@@ -3,8 +3,6 @@ from fastapi import FastAPI
 import app.models  # Import to register all models
 from app.api.v1 import api_router
 from app.core.config import get_settings
-from app.db.base import Base
-from app.db.session import engine
 
 settings = get_settings()
 

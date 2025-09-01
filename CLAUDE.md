@@ -16,7 +16,7 @@ MetaHub Test is a FastAPI-based metadata management system that provides REST AP
 ### Database Migrations (Alembic)
 ```bash
 # Create a new migration after model changes
-alembic revision --autogenerate -m "Description of changes"
+alembic revision --autogenerate -m "YYYYMMDD_description_of_changes"
 
 # Apply migrations to database
 alembic upgrade head
@@ -33,6 +33,13 @@ alembic history
 # Rollback to beginning (drop all tables)
 alembic downgrade base
 ```
+
+#### Migration File Naming Convention
+- **Pattern**: `YYYYMMDD_HHMMSS_description.py`
+- **Examples**: 
+  - `20250901_173220_consolidated_initial_schema.py`
+  - `20250902_140530_add_user_permissions.py`
+- **Benefits**: Files are naturally sorted by timestamp for easy chronological tracking
 
 ### Running the Application
 ```bash
@@ -121,35 +128,23 @@ All API endpoints are under `/api/v1/` prefix:
 - **Integration Tests**: Full application workflow testing including performance and security
 - Uses pytest with asyncio support for async test functions
 
-## 🎯 Recent Architecture Updates (2025-09)
+## 🎯 Current Architecture Design
 
-### Meta Type System Simplification
-Successfully simplified the meta type architecture from confusing 3-level to clean 2-level structure:
-
-#### Before (Confusing 3-Level)
-```
-MetaTypeKind (PRIMITIVE, STRING, CODESET, TAXONOMY)
-    ↓
-SYSTEM_META_TYPES (RETENTION_DAYS, TABLE_DESCRIPTION...) ← Unnecessary middle layer
-    ↓  
-SYSTEM_META_ITEMS (retention_days, table_description...)
-```
-
-#### After (Clean 2-Level) 🎉
+### Meta Type System (Clean 2-Level Structure)
 ```
 MetaTypeKind (PRIMITIVE, STRING, CODESET, TAXONOMY) ← True Meta Types
     ↓
 SYSTEM_META_ITEMS (direct type_kind reference) ← Actual Meta Items
 ```
 
-**Key Benefits:**
-- **Conceptually Clear**: Meta Type vs Meta Item distinction
-- **Better Performance**: No unnecessary intermediate layer
-- **Simpler API**: `/meta/types` returns 4 basic types, `/meta/items` returns actual items
-- **Database Cleanup**: Removed 3 unused tables (custom_meta_type, custom_meta_type_codeset, custom_meta_type_taxonomy)
+**Key Characteristics:**
+- **Clean Structure**: Simple Meta Type vs Meta Item distinction
+- **Performance Optimized**: Direct type_kind references without intermediate layers
+- **4 Basic Types**: PRIMITIVE, STRING, CODESET, TAXONOMY
+- **Flexible Items**: Database entities with type validation
 
-### Updated API Responses
-**`GET /api/v1/meta/types`** now returns only basic type kinds:
+### API Response Structure
+**`GET /api/v1/meta/types`** returns basic type kinds:
 ```json
 [
   {"type_code": "PRIMITIVE", "name": "Primitive"},
@@ -170,8 +165,6 @@ SYSTEM_META_ITEMS (direct type_kind reference) ← Actual Meta Items
 ```
 
 ### Spring @Transactional Style Transaction Management
-Implemented Spring-style transaction management:
-
 ```python
 @transactional()                              # REQUIRED (default)
 @transactional(read_only=True)                # READ_ONLY  
@@ -186,7 +179,7 @@ Clean architecture with separation of concerns:
 - **API**: Presentation layer with dependency injection
 
 ### STRING Meta Type Support
-Added STRING meta type with JSON wrapping:
+STRING meta type values are JSON-wrapped:
 ```json
 {"value": "actual string content"}
 ```

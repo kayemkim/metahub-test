@@ -46,14 +46,8 @@ class CustomMetaValueVersion(Base):
     value_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_value.value_id"), index=True)
     version_no: Mapped[int] = mapped_column(Integer)
 
-    # PRIMITIVE payload
+    # Unified JSON column for all meta value types
     value_json: Mapped[str | None] = mapped_column(Text)
-
-    # CODESET payload (single)
-    code_id: Mapped[str | None] = mapped_column(ForeignKey("cm_code.code_id"))
-
-    # TAXONOMY payload (single)
-    taxonomy_term_id: Mapped[str | None] = mapped_column(ForeignKey("tx_term.term_id"))
 
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -66,10 +60,6 @@ class CustomMetaValueVersion(Base):
     )
 
 
-class CustomMetaValueVersionTerm(Base):
-    __tablename__ = "custom_meta_value_version_term"
-
-    version_id: Mapped[str] = mapped_column(ForeignKey("custom_meta_value_version.version_id"), primary_key=True)
-    term_id: Mapped[str] = mapped_column(ForeignKey("tx_term.term_id"), primary_key=True)
-    
-    term: Mapped[Term] = relationship()
+# ❌ REMOVED: CustomMetaValueVersionTerm model
+# Multi-term taxonomy values are now stored in CustomMetaValueVersion.value_json as:
+# {"type": "TAXONOMY", "selection_mode": "MULTI", "terms": [...]}

@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.meta_types import (
-    SYSTEM_META_GROUPS, 
+    SYSTEM_META_GROUPS,
     SYSTEM_META_ITEMS,
     get_meta_item_type_kind,
 )
@@ -60,7 +60,7 @@ async def bootstrap_demo(session: AsyncSession):
     for item_def in SYSTEM_META_ITEMS.values():
         # Get type_kind from code instead of database
         type_kind = get_meta_item_type_kind(item_def.code)
-        
+
         item = CustomMetaItem(
             item_code=item_def.code,
             display_name=item_def.display_name,

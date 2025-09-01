@@ -18,7 +18,10 @@
       "Bash(alembic stamp:*)",
       "Bash(alembic downgrade:*)",
       "Bash(find:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(ruff check:*)"
     ],
     "deny": [],
     "ask": []

@@ -28,6 +28,10 @@ class Term(Base):
     term_key: Mapped[str] = mapped_column(String(150))
     display_name: Mapped[str] = mapped_column(String(200))
     parent_term_id: Mapped[str | None] = mapped_column(ForeignKey("tx_term.term_id"), index=True)
+    
+    # Merged from tx_term_content
+    current_version_id: Mapped[str | None] = mapped_column(String(36))
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     __table_args__ = (
@@ -35,40 +39,36 @@ class Term(Base):
     )
 
     parent: Mapped[Term | None] = relationship(remote_side="Term.term_id", backref="children")
-
-
-class TermContent(Base):
-    __tablename__ = "tx_term_content"
-
-    content_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    term_id: Mapped[str] = mapped_column(ForeignKey("tx_term.term_id"), unique=True)
-    current_version_id: Mapped[str | None] = mapped_column(String(36))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-    term: Mapped[Term] = relationship()
-    current_version: Mapped[TermContentVersion | None] = relationship(
-        primaryjoin="TermContent.current_version_id==TermContentVersion.content_version_id",
-        foreign_keys="TermContent.current_version_id",
+    current_version: Mapped[TermVersion | None] = relationship(
+        primaryjoin="Term.current_version_id==TermVersion.version_id",
+        foreign_keys="Term.current_version_id",
         viewonly=True,
+    )
+    versions: Mapped[list[TermVersion]] = relationship(
+        "TermVersion", 
+        back_populates="term", 
+        cascade="all, delete-orphan",
+        order_by="TermVersion.version_no"
     )
 
 
-class TermContentVersion(Base):
-    __tablename__ = "tx_term_content_version"
+class TermVersion(Base):
+    __tablename__ = "tx_term_version"
 
-    content_version_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    content_id: Mapped[str] = mapped_column(ForeignKey("tx_term_content.content_id"), index=True)
+    version_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    term_id: Mapped[str] = mapped_column(ForeignKey("tx_term.term_id"), index=True)
     version_no: Mapped[int] = mapped_column(Integer)
 
     body_json: Mapped[str | None] = mapped_column(Text)
     body_markdown: Mapped[str | None] = mapped_column(Text)
 
-    tx_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     author: Mapped[str | None] = mapped_column(String(200))
     change_reason: Mapped[str | None] = mapped_column(String(1000))
 
     __table_args__ = (
-        UniqueConstraint("content_id", "version_no", name="uq_term_content_version_no"),
+        UniqueConstraint("term_id", "version_no", name="uq_term_version_no"),
     )
+
+    term: Mapped[Term] = relationship(back_populates="versions")

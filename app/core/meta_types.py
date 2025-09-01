@@ -1,26 +1,25 @@
 """
 Code-based meta type definitions for better type safety and consistency
 """
-from enum import Enum
 from dataclasses import dataclass
-from typing import Dict, Optional
+from enum import Enum
 
 
 class MetaTypeKind(str, Enum):
     """Supported meta value types"""
     PRIMITIVE = "PRIMITIVE"
-    STRING = "STRING" 
+    STRING = "STRING"
     CODESET = "CODESET"
     TAXONOMY = "TAXONOMY"
 
 
-@dataclass 
+@dataclass
 class MetaGroupDefinition:
     """Definition of a meta group"""
     code: str
     display_name: str
     sort_order: int = 0
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @dataclass
@@ -32,11 +31,11 @@ class MetaItemDefinition:
     group_code: str  # references MetaGroupDefinition.code
     is_required: bool = False
     selection_mode: str = "SINGLE"  # SINGLE|MULTI (for TAXONOMY only)
-    default_json: Optional[str] = None
-    description: Optional[str] = None
+    default_json: str | None = None
+    description: str | None = None
 
 # System-defined meta groups
-SYSTEM_META_GROUPS: Dict[str, MetaGroupDefinition] = {
+SYSTEM_META_GROUPS: dict[str, MetaGroupDefinition] = {
     "BIZ_META": MetaGroupDefinition(
         code="BIZ_META",
         display_name="Business Metadata",
@@ -46,10 +45,10 @@ SYSTEM_META_GROUPS: Dict[str, MetaGroupDefinition] = {
 }
 
 # System-defined meta items
-SYSTEM_META_ITEMS: Dict[str, MetaItemDefinition] = {
+SYSTEM_META_ITEMS: dict[str, MetaItemDefinition] = {
     "retention_days": MetaItemDefinition(
         code="retention_days",
-        display_name="Retention Days", 
+        display_name="Retention Days",
         type_kind=MetaTypeKind.PRIMITIVE,
         group_code="BIZ_META",
         description="Number of days to retain this data"
@@ -58,13 +57,13 @@ SYSTEM_META_ITEMS: Dict[str, MetaItemDefinition] = {
         code="table_description",
         display_name="Table Description",
         type_kind=MetaTypeKind.STRING,
-        group_code="BIZ_META", 
+        group_code="BIZ_META",
         description="Descriptive text explaining table purpose"
     ),
     "pii_level": MetaItemDefinition(
         code="pii_level",
         display_name="PII Level",
-        type_kind=MetaTypeKind.CODESET, 
+        type_kind=MetaTypeKind.CODESET,
         group_code="BIZ_META",
         description="Classification of personal information sensitivity"
     ),

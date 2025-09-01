@@ -101,6 +101,6 @@ async def put_term_content(term_id: str, body: TermContentIn, session: AsyncSess
     term = await session.get(TermModel, term_id)
     if not term:
         raise HTTPException(404, "term not found")
-    vid = await upsert_term_content(session, term_id, TermContentUpdate(**body.model_dump()))
+    vid = await upsert_term_content(term_id, TermContentUpdate(**body.model_dump()))
     await session.commit()
     return {"content_version_id": vid}

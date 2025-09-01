@@ -4,15 +4,21 @@
 Project MetaHub {
   database_type: 'PostgreSQL'
   Note: '''
-    MetaHub - Metadata Management System (Updated Architecture)
-    - Taxonomies: Database-managed hierarchical terms
+    MetaHub - Metadata Management System (Latest Architecture - 2025-09)
+    - Taxonomies: Database-managed hierarchical terms with integrated content
     - CodeSets: Database-managed code/value pairs  
     - Meta Types: Code-managed type definitions (app/core/meta_types.py)
-    - Meta Items & Values: Database-managed with code-based type validation
+    - Meta Items & Values: Database-managed with unified JSON storage
     
-    🆕 NEW: Meta types moved from database to code for better type safety
-    🗑️ REMOVED: custom_meta_type, custom_meta_type_codeset, custom_meta_type_taxonomy tables
-    ✅ IMPROVED: Direct type_kind storage in custom_meta_item (no FK needed)
+    🆕 LATEST: Term table consolidation and unified JSON storage
+    🗑️ REMOVED: tx_term_content intermediate table 
+    🗑️ REMOVED: Legacy multi-column approach (value_json, code_id, taxonomy_term_id)
+    🗑️ REMOVED: Separate taxonomy term junction table
+    ✅ IMPROVED: Merged tx_term and tx_term_content for simpler structure
+    ✅ IMPROVED: Direct tx_term → tx_term_version relationship
+    ✅ IMPROVED: Single value_json column with complete data enrichment
+    ✅ IMPROVED: Unified API with consistent {"type": "...", ...} structure
+    ✅ IMPROVED: Spring @Transactional style transaction management
   '''
 }
 
@@ -31,6 +37,7 @@ Table tx_term {
   term_key varchar(150) [not null]
   display_name varchar(200) [not null]
   parent_term_id varchar(36) [ref: > tx_term.term_id]
+  current_version_id varchar(36) [note: '🆕 MERGED: Content management integrated into term']
   created_at timestamp [default: `now()`]
   
   indexes {
@@ -38,27 +45,19 @@ Table tx_term {
   }
 }
 
-Table tx_term_content {
-  content_id varchar(36) [pk]
-  term_id varchar(36) [ref: - tx_term.term_id, unique]
-  current_version_id varchar(36)
-  created_at timestamp [default: `now()`]
-}
-
-Table tx_term_content_version {
-  content_version_id varchar(36) [pk]
-  content_id varchar(36) [ref: > tx_term_content.content_id]
+Table tx_term_version {
+  version_id varchar(36) [pk]
+  term_id varchar(36) [ref: > tx_term.term_id]
   version_no integer [not null]
   body_json text
   body_markdown text
-  tx_time timestamp [default: `now()`]
   valid_from timestamp [default: `now()`]
   valid_to timestamp
   author varchar(200)
   change_reason varchar(1000)
   
   indexes {
-    (content_id, version_no) [unique]
+    (term_id, version_no) [unique]
   }
 }
 
@@ -145,9 +144,7 @@ Table custom_meta_value_version {
   version_id varchar(36) [pk]
   value_id varchar(36) [ref: > custom_meta_value.value_id]
   version_no integer [not null]
-  value_json text [note: '🆕 UPDATED: PRIMITIVE payload OR STRING payload (JSON wrapped: {"value": "string"})']
-  code_id varchar(36) [ref: > cm_code.code_id, note: 'CODESET payload']
-  taxonomy_term_id varchar(36) [ref: > tx_term.term_id, note: 'TAXONOMY single payload']
+  value_json text [note: '🆕 UNIFIED JSON FORMAT: {"type": "PRIMITIVE|STRING|CODESET|TAXONOMY", ...} with enriched reference data']
   valid_from timestamp [default: `now()`]
   valid_to timestamp
   tx_time timestamp [default: `now()`]
@@ -159,20 +156,31 @@ Table custom_meta_value_version {
   }
 }
 
-Table custom_meta_value_version_term {
-  version_id varchar(36) [pk, ref: > custom_meta_value_version.version_id]
-  term_id varchar(36) [pk, ref: > tx_term.term_id]
-  
-  Note: 'Multi-term taxonomy values for MULTI selection mode'
-}
+// ❌ REMOVED: custom_meta_value_version_term table 
+// Multi-term taxonomy values now stored in value_json as:
+// {"type": "TAXONOMY", "selection_mode": "MULTI", "terms": [{"term_id": "...", "term_key": "...", ...}]}
 
 // 📊 ARCHITECTURE SUMMARY:
-// Before: 10 tables (3 for meta types + links)
-// After:  7 tables (meta types managed in code)
+// Before: 14+ tables (complex multi-table approach with separate term/content storage)
+// After: 10 tables (streamlined with unified JSON storage and merged term tables)
+// 
+// 🆕 LATEST CHANGES (2025-09):
+// ❌ REMOVED: custom_meta_type, custom_meta_type_codeset, custom_meta_type_taxonomy (moved to code)
+// ❌ REMOVED: custom_meta_value_version_term (stored in JSON now)  
+// ❌ REMOVED: tx_term_content intermediate table (merged into tx_term)
+// ❌ REMOVED: legacy value_json, code_id, taxonomy_term_id columns
+// ✅ ADDED: unified value_json column with enriched reference data
+// ✅ ADDED: current_version_id to tx_term (merged from tx_term_content)
+// ✅ SIMPLIFIED: tx_term_content_version → tx_term_version with direct term_id reference
 // 
 // Benefits:
 // ✅ Better type safety with MetaTypeKind enum
-// ✅ No complex JOIN queries for type checking  
-// ✅ Faster meta value operations
+// ✅ No complex JOIN queries for type checking or taxonomy terms
+// ✅ Much faster meta value operations (single column read/write)
+// ✅ Simplified term content management (2-table instead of 3-table structure)
+// ✅ Direct term → version relationship without intermediate table
 // ✅ Git-based type versioning
 // ✅ Compile-time type validation
+// ✅ Unified API structure with consistent JSON format
+// ✅ Enriched JSON includes full reference data (labels, display names, etc.)
+// ✅ Single transaction writes with @transactional decorator

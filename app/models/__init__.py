@@ -7,9 +7,8 @@ from app.models.meta_types import (
 from app.models.meta_values import (
     CustomMetaValue,
     CustomMetaValueVersion,
-    CustomMetaValueVersionTerm,
 )
-from app.models.taxonomy import Taxonomy, Term, TermContent, TermContentVersion
+from app.models.taxonomy import Taxonomy, Term, TermVersion
 
 __all__ = [
     "CustomMetaGroup",
@@ -19,9 +18,7 @@ __all__ = [
     "CodeVersion",
     "Taxonomy",
     "Term",
-    "TermContent",
-    "TermContentVersion",
+    "TermVersion",
     "CustomMetaValue",
     "CustomMetaValueVersion",
-    "CustomMetaValueVersionTerm",
 ]
