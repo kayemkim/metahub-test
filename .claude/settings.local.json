@@ -17,7 +17,8 @@
       "Bash(alembic upgrade:*)",
       "Bash(alembic stamp:*)",
       "Bash(alembic downgrade:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

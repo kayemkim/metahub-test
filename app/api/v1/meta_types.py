@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_session
-from app.core.meta_types import SYSTEM_META_TYPES, SYSTEM_META_GROUPS, get_meta_item_type_kind
+from app.core.meta_types import MetaTypeKind, SYSTEM_META_GROUPS, get_meta_item_type_kind, get_all_meta_type_kinds
 from app.models.meta_types import CustomMetaGroup, CustomMetaItem
 from app.schemas.base import (
     MetaGroupCreate,
@@ -21,43 +21,44 @@ from app.schemas.base import (
 router = APIRouter(prefix="/meta", tags=["meta-types"])
 
 
-# MetaType endpoints - now served from code definitions
+# MetaType endpoints - return basic type kinds only
 @router.get("/types", response_model=list[MetaTypeOut])
 async def list_meta_types():
-    """Get all meta types from code definitions"""
+    """Get all supported meta type kinds"""
     return [
         MetaTypeOut(
-            type_id=type_def.code,  # Use code as ID for compatibility
-            type_code=type_def.code,
-            name=type_def.name,
-            type_kind=type_def.kind.value,
-            schema_json=type_def.schema_json,
-            created_at=datetime.utcnow()  # Static timestamp for code definitions
-        ) for type_def in SYSTEM_META_TYPES.values()
+            type_id=kind.value,
+            type_code=kind.value,
+            name=kind.value.title(),  # PRIMITIVE -> Primitive
+            type_kind=kind.value,
+            schema_json=None,
+            created_at=datetime.utcnow()
+        ) for kind in get_all_meta_type_kinds()
     ]
 
 
 @router.get("/types/{type_code}", response_model=MetaTypeOut)
 async def get_meta_type(type_code: str):
-    """Get a specific meta type by code from code definitions"""
-    type_def = SYSTEM_META_TYPES.get(type_code)
-    if not type_def:
+    """Get a specific meta type kind by code"""
+    try:
+        kind = MetaTypeKind(type_code.upper())
+    except ValueError:
         raise HTTPException(404, f"Meta type '{type_code}' not found")
     
     return MetaTypeOut(
-        type_id=type_def.code,
-        type_code=type_def.code,
-        name=type_def.name,
-        type_kind=type_def.kind.value,
-        schema_json=type_def.schema_json,
+        type_id=kind.value,
+        type_code=kind.value,
+        name=kind.value.title(),
+        type_kind=kind.value,
+        schema_json=None,
         created_at=datetime.utcnow()
     )
 
 
 @router.post("/types", response_model=MetaTypeOut)
 async def create_meta_type(data: MetaTypeCreate):
-    """Meta types are now managed in code - this endpoint is deprecated"""
-    raise HTTPException(400, "Meta types are now managed in code. Please update SYSTEM_META_TYPES in app/core/meta_types.py")
+    """Meta types are basic kinds - cannot be created via API"""
+    raise HTTPException(400, "Meta type kinds are fixed. Use /meta/items to create specific metadata items.")
 
 
 # MetaGroup endpoints - still database-based
@@ -185,10 +186,8 @@ async def create_meta_item(data: MetaItemCreate, session: AsyncSession = Depends
         raise HTTPException(400, f"Meta group '{data.group_id}' not found")
     
     # Validate type_kind is valid
-    try:
-        from app.core.meta_types import MetaTypeKind
-        MetaTypeKind(data.type_kind)
-    except ValueError:
+    from app.core.meta_types import validate_meta_type_kind
+    if not validate_meta_type_kind(data.type_kind):
         raise HTTPException(400, f"Invalid type_kind: {data.type_kind}")
 
     item = CustomMetaItem(

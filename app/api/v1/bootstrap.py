@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_session
-from app.core.meta_types import SYSTEM_META_TYPES
+from app.core.meta_types import MetaTypeKind
 from app.services.bootstrap_service import bootstrap_demo
 
 router = APIRouter(prefix="/bootstrap", tags=["bootstrap"])
@@ -21,7 +21,7 @@ async def create_demo_data(session: AsyncSession = Depends(get_session)):
             "terms": 2,
             "codesets": 1,
             "codes": 2,
-            "meta_types": len(SYSTEM_META_TYPES),  # Code-based count
+            "meta_types": len(MetaTypeKind),  # Code-based count
             "meta_groups": 1,
             "meta_items": 4  # Updated count
         }
@@ -43,9 +43,8 @@ async def check_bootstrap_status(session: AsyncSession = Depends(get_session)):
     meta_group_count = (await session.execute(select(func.count(CustomMetaGroup.group_id)))).scalar()
     meta_item_count = (await session.execute(select(func.count(CustomMetaItem.item_id)))).scalar()
 
-    # Meta types are now in code - count from SYSTEM_META_TYPES
-    from app.core.meta_types import SYSTEM_META_TYPES
-    meta_type_count = len(SYSTEM_META_TYPES)
+    # Meta types are now basic kinds - count from MetaTypeKind
+    meta_type_count = len(MetaTypeKind)
 
     return {
         "demo_data_exists": taxonomy_count > 0 or codeset_count > 0,
